@@ -1,0 +1,109 @@
+name: Build Android APK
+
+# Produces a debug APK you can install directly on a phone.
+#
+# Run it from the Actions tab with "Run workflow", or just push to main.
+# When it finishes, download the artifact named pdf2mobi-apk.
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          # libltdl-dev is REQUIRED: without it autoconf cannot resolve the
+          # LT_SYS_SYMBOL_USCORE macro and libffi's autoreconf fails with
+          # "possibly undefined macro: LT_SYS_SYMBOL_USCORE".
+          sudo apt-get install -y \
+            git zip unzip openjdk-17-jdk \
+            autoconf automake libtool libltdl-dev pkg-config m4 \
+            zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo6 \
+            cmake libffi-dev libssl-dev build-essential ccache
+
+      - name: Verify the toolchain can resolve the libtool macro
+        run: |
+          autoconf --version | head -1
+          libtool --version | head -1
+          # This is the check for the failure that used to break the build:
+          # autoreconf needs libltdl-dev so that LT_SYS_SYMBOL_USCORE exists.
+          if grep -rq LT_SYS_SYMBOL_USCORE /usr/share/aclocal/libtool.m4; then
+            echo "libtool.m4 defines LT_SYS_SYMBOL_USCORE: OK"
+          else
+            echo "ERROR: libtool.m4 does not define LT_SYS_SYMBOL_USCORE"
+            echo "libltdl-dev is missing or incomplete"
+            exit 1
+          fi
+
+      - name: Install buildozer and Cython
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "buildozer==1.5.0" "cython<3.0"
+
+      - name: Cache buildozer global directory
+        uses: actions/cache@v4
+        with:
+          path: ~/.buildozer
+          key: buildozer-global-${{ hashFiles('buildozer.spec') }}
+          restore-keys: buildozer-global-
+
+      - name: Cache the Android SDK and NDK
+        uses: actions/cache@v4
+        with:
+          path: ~/.buildozer/android/platform
+          key: android-sdk-ndk-${{ hashFiles('buildozer.spec') }}
+          restore-keys: android-sdk-ndk-
+
+      - name: Verify the pure-Python core before building
+        run: |
+          python -m pip install pypdf
+          python - <<'PY'
+          import sys
+          sys.path.insert(0, "src")
+          # Importing proves there is no accidental native dependency, which is
+          # the whole reason this app can be built with python-for-android.
+          from pdf2mobi_android import pdftext, builder, writers, encoding_fix
+          print("core modules import cleanly")
+          PY
+
+      - name: Build the debug APK
+        run: |
+          # Do not pipe through `yes`: buildozer already runs non-interactively
+          # here, and a closed pipe can make it exit early.
+          buildozer -v android debug
+
+      - name: Upload the APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: pdf2mobi-apk
+          path: bin/*.apk
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload build logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-logs
+          path: |
+            .buildozer/android/platform/build-*/build.log
+            .buildozer/**/*.log
+            bin/*.log
+          if-no-files-found: ignore
+          retention-days: 7
