@@ -1,0 +1,10 @@
+# Runtime dependencies for pdf2mobi on Android.
+#
+# Deliberately minimal: everything must be pure Python because
+# python-for-android has no recipe for the native alternatives.
+#
+#   pymupdf   - EXCLUDED: no Android build exists
+#   pdfminer  - EXCLUDED: hard-depends on `cryptography`, which has no recipe
+#   tesseract - EXCLUDED: no recipe; OCR uses Android ML Kit instead
+pypdf>=4.0
+charset-normalizer>=3.0

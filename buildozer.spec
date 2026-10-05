@@ -1,0 +1,54 @@
+[app]
+
+# ---------------------------------------------------------------------------
+# Basic application metadata
+# ---------------------------------------------------------------------------
+title = PDF 转 MOBI
+package.name = pdf2mobi
+package.domain = org.pdf2mobi
+
+source.dir = .
+source.include_exts = py,png,jpg,kv,atlas,ttf
+source.include_patterns = src/pdf2mobi_android/*.py
+
+version = 1.0.0
+
+# ---------------------------------------------------------------------------
+# Requirements
+#
+# Everything here must be either pure Python or have a python-for-android
+# recipe. Notably ABSENT:
+#   * pymupdf / fitz  - no Android build exists; text extraction uses pypdf
+#   * pdfminer.six    - depends on `cryptography`, which has no p4a recipe
+#   * tesseract       - no p4a recipe; OCR goes through Android's ML Kit
+# ---------------------------------------------------------------------------
+requirements = python3,kivy,pypdf,charset-normalizer,android
+
+# Use the official Kivy bootstrap.
+orientation = portrait
+fullscreen = 0
+
+# ---------------------------------------------------------------------------
+# Android specific
+# ---------------------------------------------------------------------------
+android.api = 34
+android.minapi = 24
+# 28c is the version python-for-android currently recommends
+# (see RECOMMENDED_NDK_VERSION in pythonforandroid/recommendations.py).
+# Buildozer downloads it automatically on the first build; the CI cache keeps
+# it available afterwards.
+android.ndk = 28c
+android.archs = arm64-v8a
+android.allow_backup = True
+
+# ML Kit text recognition (Chinese) plus the base recogniser. These are fetched
+# by Gradle as AARs and add only a few hundred KB to the APK, because the actual
+# language models are downloaded on demand by Google Play Services.
+android.gradle_dependencies = com.google.mlkit:text-recognition-chinese:16.0.1,com.google.mlkit:text-recognition:16.0.1
+
+# The Java source for the OCR bridge lives in android-src/ (see OcrBridge.java).
+android.add_src = android-src
+
+[buildozer]
+log_level = 2
+warn_on_root = 1
