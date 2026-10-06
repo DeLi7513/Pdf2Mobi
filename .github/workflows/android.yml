@@ -92,10 +92,23 @@ jobs:
           print("core modules import cleanly")
           PY
 
+      - name: Confirm the spec accepts the Android SDK licence
+        run: |
+          # buildozer only auto-answers sdkmanager's "Accept? (y/N)" prompt when
+          # this is true. Without it, platform-tools and build-tools are skipped
+          # and the build later fails with "Aidl not found".
+          if grep -Eq '^[[:space:]]*android\.accept_sdk_license[[:space:]]*=[[:space:]]*(True|1|yes|on)' buildozer.spec; then
+            echo "android.accept_sdk_license is enabled: OK"
+          else
+            echo "ERROR: android.accept_sdk_license is missing or not true in buildozer.spec"
+            exit 1
+          fi
+
       - name: Build the debug APK
         run: |
-          # Do not pipe through `yes`: buildozer already runs non-interactively
-          # here, and a closed pipe can make it exit early.
+          # Non-interactive: buildozer answers the SDK licence prompt itself
+          # (see android.accept_sdk_license above). Do not pipe through `yes`,
+          # which can close the pipe early and abort the build.
           buildozer -v android debug
 
       - name: Upload the APK

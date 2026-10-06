@@ -49,6 +49,15 @@ android.gradle_dependencies = com.google.mlkit:text-recognition-chinese:16.0.1,c
 # The Java source for the OCR bridge lives in android-src/ (see OcrBridge.java).
 android.add_src = android-src
 
+# REQUIRED. Without this buildozer refuses to answer sdkmanager's
+# "Accept? (y/N):" prompt, so platform-tools and build-tools are skipped and
+# the build then dies with "Aidl not found, please install it."
+# When true, buildozer watches for the prompt and sends "y".
+android.accept_sdk_license = True
+
+android.permissions = READ_EXTERNAL_STORAGE,WRITE_EXTERNAL_STORAGE,READ_MEDIA_IMAGES
+android.enable_androidx = True
+
 [buildozer]
 log_level = 2
 warn_on_root = 1
