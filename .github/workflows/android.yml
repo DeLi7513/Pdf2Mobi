@@ -28,26 +28,36 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          # libltdl-dev is REQUIRED: without it autoconf cannot resolve the
-          # LT_SYS_SYMBOL_USCORE macro and libffi's autoreconf fails with
-          # "possibly undefined macro: LT_SYS_SYMBOL_USCORE".
+          # These are the packages python-for-android's libffi recipe needs.
+          # Quoting pythonforandroid/recipes/libffi/__init__.py:
+          #   - automake    for the `aclocal` binary
+          #   - autoconf    for the `autoreconf` binary
+          #   - libltdl-dev which defines the LT_SYS_SYMBOL_USCORE macro
+          # libtool is also needed because libffi runs ./autogen.sh, which calls
+          # `libtoolize`. On Ubuntu 24.04 the `libtool` package no longer ships
+          # the `libtool` binary itself - that moved to `libtool-bin` - so both
+          # packages are installed.
           sudo apt-get install -y \
             git zip unzip openjdk-17-jdk \
-            autoconf automake libtool libltdl-dev pkg-config m4 \
+            autoconf automake libtool libtool-bin libltdl-dev pkg-config m4 \
             zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo6 \
             cmake libffi-dev libssl-dev build-essential ccache
 
-      - name: Verify the toolchain can resolve the libtool macro
+      - name: Verify the autotools chain is complete
         run: |
+          set -e
           autoconf --version | head -1
+          automake --version | head -1
           libtool --version | head -1
-          # This is the check for the failure that used to break the build:
-          # autoreconf needs libltdl-dev so that LT_SYS_SYMBOL_USCORE exists.
-          if grep -rq LT_SYS_SYMBOL_USCORE /usr/share/aclocal/libtool.m4; then
-            echo "libtool.m4 defines LT_SYS_SYMBOL_USCORE: OK"
+          libtoolize --version | head -1
+          aclocal --version | head -1
+          # LT_SYS_SYMBOL_USCORE is defined by libltdl-dev's ltdl.m4, not by
+          # libtool.m4, so search every installed aclocal macro.
+          if grep -rqs LT_SYS_SYMBOL_USCORE /usr/share/aclocal/; then
+            echo "LT_SYS_SYMBOL_USCORE found in the installed aclocal macros: OK"
           else
-            echo "ERROR: libtool.m4 does not define LT_SYS_SYMBOL_USCORE"
-            echo "libltdl-dev is missing or incomplete"
+            echo "ERROR: LT_SYS_SYMBOL_USCORE missing from /usr/share/aclocal"
+            ls -la /usr/share/aclocal/ || true
             exit 1
           fi
 
