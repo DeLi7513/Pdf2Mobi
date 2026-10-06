@@ -18,11 +18,14 @@ version = 1.0.0
 #
 # Everything here must be either pure Python or have a python-for-android
 # recipe. Notably ABSENT:
-#   * pymupdf / fitz  - no Android build exists; text extraction uses pypdf
-#   * pdfminer.six    - depends on `cryptography`, which has no p4a recipe
-#   * tesseract       - no p4a recipe; OCR goes through Android's ML Kit
+#   * pymupdf / fitz     - no Android build exists; text extraction uses pypdf
+#   * pdfminer.six       - depends on `cryptography`, which has no p4a recipe
+#   * charset-normalizer - a leftover pdfminer dependency that nothing imports;
+#                          it publishes no Android wheel, so shipping it makes
+#                          pip fail with "not a supported wheel on this platform"
+#   * tesseract          - no p4a recipe; OCR goes through Android's ML Kit
 # ---------------------------------------------------------------------------
-requirements = python3,kivy,pypdf,charset-normalizer,android
+requirements = python3,kivy,pypdf,android
 
 # Use the official Kivy bootstrap.
 orientation = portrait

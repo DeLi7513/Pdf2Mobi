@@ -92,6 +92,45 @@ jobs:
           print("core modules import cleanly")
           PY
 
+      - name: Check every requirement has an Android-compatible build
+        run: |
+          # Catching this here saves an 11 minute build. A dependency that only
+          # publishes platform specific wheels (charset-normalizer, for example)
+          # makes pip fail inside the Android venv with
+          # "not a supported wheel on this platform".
+          python - <<'PY'
+          import re, sys, urllib.request, json, ssl
+
+          spec = open("buildozer.spec", encoding="utf-8").read()
+          m = re.search(r"^requirements\s*=\s*(.+)$", spec, re.M)
+          if not m:
+              sys.exit("no requirements line in buildozer.spec")
+
+          # python3 / android are p4a recipes, not PyPI distributions.
+          skip = {"python3", "android", "kivy"}
+          pkgs = [p.strip().split("[")[0].split("=")[0].split(">")[0].split("<")[0]
+                  for p in m.group(1).split(",")]
+          pkgs = [p for p in pkgs if p and p not in skip]
+
+          ctx = ssl.create_default_context()
+          bad = []
+          for pkg in pkgs:
+              req = urllib.request.Request(f"https://pypi.org/pypi/{pkg}/json",
+                                           headers={"User-Agent": "ci"})
+              with urllib.request.urlopen(req, timeout=60, context=ctx) as r:
+                  meta = json.loads(r.read())
+              files = [f["filename"] for f in meta["urls"]]
+              pure = [f for f in files if "py3-none-any" in f or "py2.py3-none-any" in f]
+              android = [f for f in files if "android" in f.lower()]
+              status = "pure-python" if pure else ("android-wheel" if android else "NATIVE ONLY")
+              print(f"  {pkg:22} {status}")
+              if not pure and not android:
+                  bad.append(pkg)
+          if bad:
+              sys.exit("ERROR: these need an Android build and have none: " + ", ".join(bad))
+          print("all requirements are Android compatible")
+          PY
+
       - name: Confirm the spec accepts the Android SDK licence
         run: |
           # buildozer only auto-answers sdkmanager's "Accept? (y/N)" prompt when

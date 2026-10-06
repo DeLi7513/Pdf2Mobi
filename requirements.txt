@@ -3,8 +3,11 @@
 # Deliberately minimal: everything must be pure Python because
 # python-for-android has no recipe for the native alternatives.
 #
-#   pymupdf   - EXCLUDED: no Android build exists
-#   pdfminer  - EXCLUDED: hard-depends on `cryptography`, which has no recipe
-#   tesseract - EXCLUDED: no recipe; OCR uses Android ML Kit instead
+#   pymupdf             - EXCLUDED: no Android build exists
+#   pdfminer            - EXCLUDED: hard-depends on `cryptography` (native)
+#   charset-normalizer  - EXCLUDED: existed only as a pdfminer dependency,
+#                         nothing imports it, and it ships no Android wheel -
+#                         listing it makes pip fail during the Android build
+#                         with "not a supported wheel on this platform"
+#   tesseract           - EXCLUDED: no recipe; OCR uses Android ML Kit instead
 pypdf>=4.0
-charset-normalizer>=3.0
